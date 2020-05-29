@@ -86,7 +86,7 @@ def audio_samples(input, frame_count, time_info, status_flags):
     return (in_data, pyaudio.paContinue)
 
 # Setup up file iteration of all segmented .wav files
-for entry in os.scandir('../FluSense_labeled/'):
+for entry in os.scandir('../flusense_segmented/'):
     # entry = '../FluSense_labeled/cough53.wav'
     wf = wave.open(entry.path, 'rb')
 
