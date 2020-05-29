@@ -9,13 +9,17 @@ import tensorflow as tf
 import wave
 import wget
 import ubicoustics
+import os
+from matplotlib import pyplot as plt
 
 # Variables
 FORMAT = pyaudio.paInt16
-CHANNELS = 1
-RATE = 16000
+CHANNELS = 2
+RATE = 44100
 CHUNK = RATE
 float_dtype = '>f4'
+
+
 
 ###########################
 # Download model, if it doesn't exist
@@ -36,13 +40,12 @@ context = ubicoustics.everything
 context_mapping = ubicoustics.context_mapping
 trained_model = model_filename
 other = True
-selected_file = 'example.wav'
 selected_context = 'everything'
 
 print("Using deep learning model: %s" % (trained_model))
 model = load_model(trained_model)
 graph = tf.get_default_graph()
-wf = wave.open(selected_file, 'rb')
+#wf = wave.open(selected_file, 'rb')
 
 context = context_mapping[selected_context]
 label = dict()
@@ -59,6 +62,15 @@ def audio_samples(input, frame_count, time_info, status_flags):
     with graph.as_default():
         if x.shape[0] != 0:
             x = x.reshape(len(x), 96, 64, 1)
+
+            # # Plot Mel Spectrum
+            # melspec = np.transpose(x[2, :, :, :].reshape(96, 64))[::-1, :]
+            # plt.imshow(melspec, origin='lower')
+            # plt.title('Mel-spectrum of Audio Snippet with Coughs')
+            # plt.xlabel('10ms Frames')
+            # plt.ylabel('frequency band index')
+            # plt.show()
+
             pred = model.predict(x)
             predictions.append(pred)
 
@@ -73,12 +85,17 @@ def audio_samples(input, frame_count, time_info, status_flags):
 
     return (in_data, pyaudio.paContinue)
 
-# Setup pyaudio waveread stream
-p = pyaudio.PyAudio()
-stream = p.open(format=FORMAT, channels=CHANNELS, rate=RATE, output=True, frames_per_buffer=CHUNK, stream_callback=audio_samples)
+# Setup up file iteration of all segmented .wav files
+for entry in os.scandir('../FluSense_labeled/'):
+    # entry = '../FluSense_labeled/cough53.wav'
+    wf = wave.open(entry.path, 'rb')
 
-# Start non-blocking stream
-print("Beginning prediction for %s (use speakers for playback):" % selected_file)
-stream.start_stream()
-while stream.is_active():
-    time.sleep(0.1)
+    # Setup pyaudio waveread stream
+    p = pyaudio.PyAudio()
+    stream = p.open(format=FORMAT, channels=CHANNELS, rate=RATE, output=True, frames_per_buffer=CHUNK, stream_callback=audio_samples)
+
+    # Start non-blocking stream
+    print("Beginning prediction for %s (use speakers for playback):" % entry)
+    stream.start_stream()
+    while stream.is_active():
+        time.sleep(0.1)
