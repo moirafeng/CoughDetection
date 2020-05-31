@@ -14,7 +14,7 @@ def waveform_to_examples(data, sample_rate):
   # Compute log mel spectrogram features.
   log_mel = mel_features.log_mel_spectrogram(
       data,
-      audio_sample_rate=vggish_params.SAMPLE_RATE,
+      audio_sample_rate=sample_rate,
       log_offset=vggish_params.LOG_OFFSET,
       window_length_secs=vggish_params.STFT_WINDOW_LENGTH_SECONDS,
       hop_length_secs=vggish_params.STFT_HOP_LENGTH_SECONDS,

@@ -16,9 +16,8 @@ from matplotlib import pyplot as plt
 FORMAT = pyaudio.paInt16
 CHANNELS = 2
 RATE = 44100
-CHUNK = RATE
+CHUNK = 22050
 float_dtype = '>f4'
-
 
 
 ###########################
@@ -45,7 +44,7 @@ selected_context = 'everything'
 print("Using deep learning model: %s" % (trained_model))
 model = load_model(trained_model)
 graph = tf.get_default_graph()
-#wf = wave.open(selected_file, 'rb')
+#wf = wave.open('../flusense_raw_audio/_0WKVY0n8aE.wav', 'rb')
 
 context = context_mapping[selected_context]
 label = dict()
@@ -61,10 +60,11 @@ def audio_samples(input, frame_count, time_info, status_flags):
     predictions = []
     with graph.as_default():
         if x.shape[0] != 0:
+            print(np.shape(x))
             x = x.reshape(len(x), 96, 64, 1)
 
-            # # Plot Mel Spectrum
-            # melspec = np.transpose(x[2, :, :, :].reshape(96, 64))[::-1, :]
+            # Plot Mel Spectrum
+            # melspec = np.transpose(x[0, :, :, :].reshape(96, 64))[::-1, :]
             # plt.imshow(melspec, origin='lower')
             # plt.title('Mel-spectrum of Audio Snippet with Coughs')
             # plt.xlabel('10ms Frames')
@@ -85,17 +85,22 @@ def audio_samples(input, frame_count, time_info, status_flags):
 
     return (in_data, pyaudio.paContinue)
 
+# Setup confusion matrix bins
+conf_mat = dict()
+
 # Setup up file iteration of all segmented .wav files
 for entry in os.scandir('../flusense_segmented/'):
     # entry = '../FluSense_labeled/cough53.wav'
-    wf = wave.open(entry.path, 'rb')
+    if "cough" in entry.path:
 
-    # Setup pyaudio waveread stream
-    p = pyaudio.PyAudio()
-    stream = p.open(format=FORMAT, channels=CHANNELS, rate=RATE, output=True, frames_per_buffer=CHUNK, stream_callback=audio_samples)
+        # wf = wave.open(entry.path, 'rb')
+        wf = wave.open('../flusense_raw_audio/_0WKVY0n8aE.wav', 'rb')
+        # Setup pyaudio waveread stream
+        p = pyaudio.PyAudio()
+        stream = p.open(format=FORMAT, channels=CHANNELS, rate=RATE, output=True, frames_per_buffer=CHUNK, stream_callback=audio_samples)
 
-    # Start non-blocking stream
-    print("Beginning prediction for %s (use speakers for playback):" % entry)
-    stream.start_stream()
-    while stream.is_active():
-        time.sleep(0.1)
+        # Start non-blocking stream
+        print("Beginning prediction for %s (use speakers for playback):" % "example")
+        stream.start_stream()
+        while stream.is_active():
+            time.sleep(0.01)

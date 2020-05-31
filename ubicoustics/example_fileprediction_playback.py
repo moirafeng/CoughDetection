@@ -12,9 +12,9 @@ import ubicoustics
 
 # Variables
 FORMAT = pyaudio.paInt16
-CHANNELS = 1
-RATE = 16000
-CHUNK = RATE
+CHANNELS = 2
+RATE = 44100
+CHUNK = 22050
 float_dtype = '>f4'
 
 ###########################
@@ -36,7 +36,7 @@ context = ubicoustics.everything
 context_mapping = ubicoustics.context_mapping
 trained_model = model_filename
 other = True
-selected_file = 'example.wav'
+selected_file = '../flusense_raw_audio/_0WKVY0n8aE.wav'
 selected_context = 'everything'
 
 print("Using deep learning model: %s" % (trained_model))
@@ -58,9 +58,11 @@ def audio_samples(input, frame_count, time_info, status_flags):
     predictions = []
     with graph.as_default():
         if x.shape[0] != 0:
+            # print(np.shape(x))
             x = x.reshape(len(x), 96, 64, 1)
             pred = model.predict(x)
             predictions.append(pred)
+
 
         for prediction in predictions:
             m = np.argmax(prediction[0])
@@ -81,4 +83,4 @@ stream = p.open(format=FORMAT, channels=CHANNELS, rate=RATE, output=True, frames
 print("Beginning prediction for %s (use speakers for playback):" % selected_file)
 stream.start_stream()
 while stream.is_active():
-    time.sleep(0.1)
+    time.sleep(0.01)

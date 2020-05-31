@@ -5,7 +5,7 @@ NUM_FRAMES = 96  # Frames in input mel-spectrogram patch.
 NUM_BANDS = 64  # Frequency bands in input mel-spectrogram patch.
 EMBEDDING_SIZE = 128  # Size of embedding layer.
 
-SAMPLE_RATE = 16000
+SAMPLE_RATE = 44100
 STFT_WINDOW_LENGTH_SECONDS = 0.025
 STFT_HOP_LENGTH_SECONDS = 0.010
 NUM_MEL_BINS = NUM_BANDS
