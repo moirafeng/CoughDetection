@@ -1,24 +1,15 @@
-from vggish_input import waveform_to_examples
+from vggish_input import waveform_to_examples, wavfile_to_examples
 import numpy as np
+import tensorflow as tf
 from keras.models import load_model
 import vggish_params
-import pyaudio
 from pathlib import Path
-import time
-import tensorflow as tf
-import wave
-import wget
 import ubicoustics
-import os
+import wget
 from matplotlib import pyplot as plt
-
-# Variables
-FORMAT = pyaudio.paInt16
-CHANNELS = 2
-RATE = 44100
-CHUNK = 22050
-float_dtype = '>f4'
-
+import matplotlib.cm as cm
+import os
+import flusense_labels as fl
 
 ###########################
 # Download model, if it doesn't exist
@@ -32,9 +23,11 @@ model_filename = "models/example_model.hdf5"
 ubicoustics_model = Path(model_filename)
 if (not ubicoustics_model.is_file()):
     print("Downloading example_model.hdf5 [867MB]: ")
-    wget.download(MODEL_URL,MODEL_PATH)
+    wget.download(MODEL_URL, MODEL_PATH)
 
+###########################
 # Load Model
+###########################
 context = ubicoustics.everything
 context_mapping = ubicoustics.context_mapping
 trained_model = model_filename
@@ -43,64 +36,80 @@ selected_context = 'everything'
 
 print("Using deep learning model: %s" % (trained_model))
 model = load_model(trained_model)
-graph = tf.get_default_graph()
-#wf = wave.open('../flusense_raw_audio/_0WKVY0n8aE.wav', 'rb')
-
 context = context_mapping[selected_context]
+graph = tf.get_default_graph()
+
+# model.summary()
+
 label = dict()
 for k in range(len(context)):
     label[k] = context[k]
 
-# Setup Callback
-def audio_samples(input, frame_count, time_info, status_flags):
-    global graph
-    in_data = wf.readframes(frame_count)
-    np_wav = np.fromstring(in_data, dtype=np.int16) / 32768.0
-    x = waveform_to_examples(np_wav, RATE)
-    predictions = []
-    with graph.as_default():
-        if x.shape[0] != 0:
-            print(np.shape(x))
-            x = x.reshape(len(x), 96, 64, 1)
+###########################
+# Read Wavfile and Make Predictions
+###########################
 
-            # Plot Mel Spectrum
-            # melspec = np.transpose(x[0, :, :, :].reshape(96, 64))[::-1, :]
-            # plt.imshow(melspec, origin='lower')
-            # plt.title('Mel-spectrum of Audio Snippet with Coughs')
-            # plt.xlabel('10ms Frames')
-            # plt.ylabel('frequency band index')
-            # plt.show()
+# x = wavfile_to_examples(selected_file)
 
-            pred = model.predict(x)
-            predictions.append(pred)
-
-        for prediction in predictions:
-            m = np.argmax(prediction[0])
-            if (m < len(label)):
-                p = label[m]
-                print("Prediction: %s (%0.2f)" % (ubicoustics.to_human_labels[label[m]], prediction[0,m]))
-                n_items = prediction.shape[1]
-            else:
-                print("KeyError: %s" % m)
-
-    return (in_data, pyaudio.paContinue)
-
-# Setup confusion matrix bins
-conf_mat = dict()
+rank = []
 
 # Setup up file iteration of all segmented .wav files
 for entry in os.scandir('../flusense_segmented/'):
-    # entry = '../FluSense_labeled/cough53.wav'
-    if "cough" in entry.path:
+    print("File: ", entry.path)
+    # cough sample statistics
+    if 'cough' in entry.path:
+        try:
+            x = wavfile_to_examples(entry.path)
+        except ValueError as e:
+            print("Error!", e, " in file", entry.path)
 
-        # wf = wave.open(entry.path, 'rb')
-        wf = wave.open('../flusense_raw_audio/_0WKVY0n8aE.wav', 'rb')
-        # Setup pyaudio waveread stream
-        p = pyaudio.PyAudio()
-        stream = p.open(format=FORMAT, channels=CHANNELS, rate=RATE, output=True, frames_per_buffer=CHUNK, stream_callback=audio_samples)
+        row = 'cough'
+        if x.shape[0] != 0:
+            with graph.as_default():
+                x = x.reshape(len(x), 96, 64, 1)
 
-        # Start non-blocking stream
-        print("Beginning prediction for %s (use speakers for playback):" % "example")
-        stream.start_stream()
-        while stream.is_active():
-            time.sleep(0.01)
+                # # Plot Mel Spectrum
+                # melspec = np.transpose(x[1, :, :, :].reshape(96, 64))[::-1, :]
+                # plt.imshow(melspec, origin='lower')
+                # plt.title('Mel-spectrum of Audio Snippet with Coughs')
+                # plt.xlabel('10ms Frames')
+                # plt.ylabel('frequency band index')
+                # plt.show()
+
+                predictions = model.predict(x)
+
+                for k in range(len(predictions)):
+                    prediction = predictions[k]
+                    rank.append(np.argsort(predictions)[0][8])
+                    m = np.argmax(prediction)
+                    fl.conf_mat[row][label[m]] += 1
+                    print("Prediction: %s (%0.2f)" % (ubicoustics.to_human_labels[label[m]], prediction[m]))
+        continue
+
+    for i in range(1, len(fl.f_labels)):
+        if fl.f_labels[i] in entry.path:
+            try:
+                x = wavfile_to_examples(entry.path)
+            except ValueError as e:
+                print("Error!", e, " in file", entry.path)
+
+            row = fl.f_labels[i]
+            if x.shape[0] != 0:
+
+                with graph.as_default():
+                    x = x.reshape(len(x), 96, 64, 1)
+                    #print(np.shape(x))
+
+                    predictions = model.predict(x)
+
+                    for k in range(len(predictions)):
+                        prediction = predictions[k]
+                        m = np.argmax(prediction)
+                        fl.conf_mat[row][label[m]] += 1
+                        #print("Prediction: %s (%0.2f)" % (ubicoustics.to_human_labels[label[m]], prediction[m]))
+            break
+
+# Print confusion matrix & cough samples prediction rankings
+print(fl.conf_mat)
+print(rank)
+
