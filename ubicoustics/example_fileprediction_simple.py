@@ -62,29 +62,60 @@ for k in range(len(context)):
 # plt.xlabel('10ms Frames')
 # plt.ylabel('frequency band index')
 # plt.show()
+rank = []
+cnt = 0
 
 # Setup up file iteration of all segmented .wav files
 for entry in os.scandir('../flusense_segmented/'):
-    # entry = '../FluSense_labeled/cough53.wav'
-    for i in range(len(fl.f_labels)):
-        if fl.f_labels[i] in entry.path:
-            row = fl.f_labels[i]
-            print("Actual Label:", row)
+    # print("File: ", entry.path)
+    cnt += 1
+    print(cnt)
+    # cough sample statistics
+    if 'cough' in entry.path:
+        try:
             x = wavfile_to_examples(entry.path)
+        except ValueError as e:
+            print("Error!", e, " in file", entry.path)
 
+        row = 'cough'
+        if x.shape[0] != 0:
             with graph.as_default():
                 x = x.reshape(len(x), 96, 64, 1)
-                #print(np.shape(x))
-
                 predictions = model.predict(x)
 
                 for k in range(len(predictions)):
                     prediction = predictions[k]
+                    rank.append(np.argsort(predictions)[0][8])
+                    #print(np.argsort(predictions)[0])
                     m = np.argmax(prediction)
                     fl.conf_mat[row][label[m]] += 1
-                    print("Prediction: %s (%0.2f)" % (ubicoustics.to_human_labels[label[m]], prediction[m]))
+                    #print("Prediction: %s (%0.2f)" % (ubicoustics.to_human_labels[label[m]], prediction[m]))
+        continue
 
-        else:
-            continue
+    for i in range(1, len(fl.f_labels)):
+        if fl.f_labels[i] in entry.path:
+            try:
+                x = wavfile_to_examples(entry.path)
+            except ValueError as e:
+                print("Error!", e, " in file", entry.path)
 
+            row = fl.f_labels[i]
+            if x.shape[0] != 0:
+
+                with graph.as_default():
+                    x = x.reshape(len(x), 96, 64, 1)
+                    #print(np.shape(x))
+
+                    predictions = model.predict(x)
+
+                    for k in range(len(predictions)):
+                        prediction = predictions[k]
+                        m = np.argmax(prediction)
+                        fl.conf_mat[row][label[m]] += 1
+                        #print("Prediction: %s (%0.2f)" % (ubicoustics.to_human_labels[label[m]], prediction[m]))
+            break
+
+# Print confusion matrix & cough samples prediction rankings
 print(fl.conf_mat)
+print(rank)
+

@@ -10,7 +10,7 @@ u_labels = [
 ]
 
 f_labels = ['cough',
-            'speech',
+            'Speech',
             'snore',
             'silence',
             'sniffle',
@@ -25,6 +25,9 @@ f_labels = ['cough',
             'etc'
             ]
 
-count = dict.fromkeys(u_labels, 0)
-conf_mat = dict.fromkeys(f_labels, count)
+rows = []
+for i in range(len(f_labels)):
+    rows.append(dict.fromkeys(u_labels, 0))
+
+conf_mat = dict(zip(f_labels, rows))
 
